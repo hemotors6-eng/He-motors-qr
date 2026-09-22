@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HE MOTORS | Servicio</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,sans-serif;background:#111;color:#fff}
+  .wrap{max-width:520px;margin:auto;padding:20px}
+  .card{background:#1c1c1c;border:1px solid #333;border-radius:18px;padding:22px;margin-bottom:16px}
+  .logo{text-align:center;font-size:30px;font-weight:900;letter-spacing:2px;margin:8px 0 4px}
+  .sub{text-align:center;color:#aaa;margin-bottom:22px}
+  h2{margin-top:0}
+  .row{display:flex;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #333}
+  .row:last-child{border-bottom:0}
+  .label{color:#aaa}
+  .value{text-align:right;font-weight:700}
+  .next{border:1px solid #555}
+  .loading{text-align:center;color:#aaa;padding:20px}
+  .error{color:#ff7777;line-height:1.5}
+  footer{text-align:center;color:#777;font-size:12px;padding:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="logo">HE MOTORS</div>
+    <div class="sub">Historial de servicio</div>
+    <div id="content" class="loading">Cargando información...</div>
+  </div>
+  <footer>Servicio automotriz • HE MOTORS</footer>
+</div>
+
+<script>
+/*
+  PASO 1: coloca aquí los datos PÚBLICOS de tu proyecto Supabase.
+  NO uses la service_role key. Usa únicamente la anon/publishable key.
+*/
+const SUPABASE_URL = "https://pfyyxxtpdwzeoppskvxr.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_4pdKk9EBqo_hTN0INmMnGA_aIN1FTRb";
+
+async function cargarServicio() {
+  const content = document.getElementById("content");
+  const id = new URLSearchParams(location.search).get("id") || "1";
+
+  if (SUPABASE_URL.includes("PEGA_AQUI") || SUPABASE_ANON_KEY.includes("PEGA_AQUI")) {
+    content.innerHTML = `<div class="error"><b>Falta configurar Supabase.</b><br><br>
+    Coloca la URL y la clave pública del proyecto en el código.</div>`;
+    return;
+  }
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/obtener_servicios_qr`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({p_vehiculo_id: Number(id)})
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+
+    const data = await res.json();
+
+    if (!data || data.length === 0) {
+      content.innerHTML = `<div class="error">No se encontraron servicios para este vehículo.</div>`;
+      return;
+    }
+
+    const ultimo = data[0];
+
+    const fmt = v => v ? new Date(v + (String(v).length === 10 ? "T00:00:00" : "")).toLocaleDateString("es-MX") : "—";
+    const km = v => v == null ? "—" : Number(v).toLocaleString("es-MX") + " km";
+
+    content.innerHTML = `
+      <h2>Último servicio</h2>
+      <div class="row"><span class="label">Servicio</span><span class="value">${ultimo.tipo_servicio ?? "—"}</span></div>
+      <div class="row"><span class="label">Descripción</span><span class="value">${ultimo.descripcion ?? "—"}</span></div>
+      <div class="row"><span class="label">Fecha</span><span class="value">${fmt(ultimo.fecha_servicio)}</span></div>
+      <div class="row"><span class="label">Kilometraje</span><span class="value">${km(ultimo.kilometraje)}</span></div>
+
+      <div class="card next" style="margin:22px 0 0;padding:16px">
+        <h2 style="font-size:19px">Próximo servicio</h2>
+        <div class="row"><span class="label">Fecha</span><span class="value">${fmt(ultimo.proximo_servicio)}</span></div>
+        <div class="row"><span class="label">Kilometraje</span><span class="value">${km(ultimo.proximo_kilometraje)}</span></div>
+      </div>
+    `;
+  } catch (e) {
+    content.innerHTML = `<div class="error"><b>No se pudo cargar la información.</b><br><br>
+      Revisa que la función <code>obtener_servicios_qr</code> sea accesible públicamente y que los datos de Supabase sean correctos.</div>`;
+    console.error(e);
+  }
+}
+
+cargarServicio();
+</script>
+</body>
+</html>
