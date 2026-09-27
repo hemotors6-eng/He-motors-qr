@@ -1,0 +1,250 @@
+DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>HE MOTORS | Alta de vehículo</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #111;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+
+    .card {
+      max-width: 520px;
+      margin: auto;
+      background: #1c1c1c;
+      border: 1px solid #333;
+      border-radius: 18px;
+      padding: 24px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      letter-spacing: 2px;
+    }
+
+    .sub {
+      text-align: center;
+      color: #aaa;
+      margin-bottom: 25px;
+    }
+
+    label {
+      display: block;
+      color: #aaa;
+      margin-top: 14px;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border-radius: 10px;
+      border: 1px solid #444;
+      background: #111;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 14px;
+      border: 0;
+      border-radius: 10px;
+      background: #fff;
+      color: #111;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    #resultado {
+      margin-top: 25px;
+      text-align: center;
+    }
+
+    #qr {
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    .ok {
+      color: #7cff9b;
+      font-weight: bold;
+    }
+
+    .error {
+      color: #ff7777;
+      line-height: 1.5;
+    }
+  </style>
+
+  <!-- Generador de QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+
+<body>
+
+<div class="card">
+
+  <h1>HE MOTORS</h1>
+  <div class="sub">Alta de vehículo</div>
+
+  <label>ID del cliente</label>
+  <input id="cliente_id" type="number" placeholder="Ej. 15">
+
+  <label>Marca</label>
+  <input id="marca" type="text" placeholder="Ej. Toyota">
+
+  <label>Modelo</label>
+  <input id="modelo" type="text" placeholder="Ej. Corolla">
+
+  <label>Año</label>
+  <input id="anio" type="number" placeholder="Ej. 2022">
+
+  <label>Placas</label>
+  <input id="placas" type="text" placeholder="Ej. ABC123">
+
+  <label>VIN</label>
+  <input id="vin" type="text" placeholder="VIN">
+
+  <label>Kilometraje</label>
+  <input id="kilometraje" type="number" placeholder="Ej. 85000">
+
+  <button onclick="guardarVehiculo()">
+    GUARDAR VEHÍCULO Y GENERAR QR
+  </button>
+
+  <div id="resultado"></div>
+  <div id="qr"></div>
+
+</div>
+
+<script>
+
+  /*
+    IMPORTANTE:
+    COPIA AQUÍ EXACTAMENTE LOS DOS VALORES
+    QUE YA TIENES EN TU index.html
+  */
+
+  const SUPABASE_URL = "https://pfyyxxtpdwzeoppskvxr.supabase.co";
+
+  const SUPABASE_ANON_KEY = "sb_publishable_4pdKk9EBqo_hTN0INmMnGA_aIN1FTRb";
+
+
+  async function guardarVehiculo() {
+
+    const resultado = document.getElementById("resultado");
+    const qr = document.getElementById("qr");
+
+    resultado.innerHTML = "";
+    qr.innerHTML = "";
+
+    const cliente_id = Number(document.getElementById("cliente_id").value);
+    const marca = document.getElementById("marca").value.trim();
+    const modelo = document.getElementById("modelo").value.trim();
+    const anio = document.getElementById("anio").value;
+    const placas = document.getElementById("placas").value.trim();
+    const vin = document.getElementById("vin").value.trim();
+    const kilometraje = document.getElementById("kilometraje").value;
+
+    if (!cliente_id || !marca || !modelo) {
+      resultado.innerHTML =
+        '<div class="error">Completa al menos ID del cliente, marca y modelo.</div>';
+      return;
+    }
+
+    resultado.innerHTML = "Guardando vehículo...";
+
+    try {
+
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/vehiculos?select=id,cliente_id,marca,modelo,qr_codigo`,
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_ANON_KEY,
+            "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+            "Prefer": "return=representation"
+          },
+
+          body: JSON.stringify({
+            cliente_id: cliente_id,
+            marca: marca,
+            modelo: modelo,
+            año: anio ? Number(anio) : null,
+            placas: placas || null,
+            vin: vin || null,
+            kilometraje: kilometraje ? Number(kilometraje) : null
+          })
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+
+      const data = await res.json();
+
+      if (!data || !data.length) {
+        throw new Error("No se recibió el vehículo creado.");
+      }
+
+      const vehiculo = data[0];
+
+      /*
+        El trigger de Supabase ya genera qr_codigo.
+        El QR apunta a la página principal con ?id=ID
+      */
+
+      const urlQR = `${location.origin}/?id=${vehiculo.id}`;
+
+      resultado.innerHTML = `
+        <div class="ok">
+          ✅ Vehículo registrado correctamente
+        </div>
+        <br>
+        ID del vehículo: <b>${vehiculo.id}</b>
+        <br>
+        QR generado automáticamente
+      `;
+
+      new QRCode(document.getElementById("qr"), {
+        text: urlQR,
+        width: 220,
+        height: 220
+      });
+
+    } catch (error) {
+
+      resultado.innerHTML = `
+        <div class="error">
+          ❌ No se pudo registrar el vehículo.<br><br>
+          ${error.message}
+        </div>
+      `;
+
+    }
+
+  }
+
+</script>
+
+</body>
+</html>
